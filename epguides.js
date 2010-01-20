@@ -1,12 +1,4 @@
-const TEMPLATE = 
-"<div style=\"clear: both;\">${title}</div>
-<div style=\"float: left;\">
-	<img style=\"height: 50px; width: 50px; float: left;\" src=\"${image}\"/>
-	<ul style=\"display: block; list-style-type: none; float: left;\">
-		<li><p>Next Episode: ${next}</p></li>
-		<li><p>Last Episode: ${previous}</p></li> 
-	</ul>
-</div>";
+const TEMPLATE = "<div style=\"clear: both;\">${title}</div><div style=\"float: left;\"><img style=\"height: 50px; width: 50px; float: left;\" src=\"${image}\"/><ul style=\"display: block; list-style-type: none; float: left;\"><li><p>Next Episode: ${next}</p></li><li><p>Last Episode: ${previous}</p></li> </ul></div>";
 
 var log = CmdUtils.log;
 // Object cache!
@@ -41,20 +33,36 @@ CmdUtils.CreateCommand({
 		
 		var url = "http://epguides.com/" + searchText;
 		
-		CmdUtils.previewGet(
+		CmdUtils.previewAjax(
 			pblock, 
-			url, 
-			{}, // No params given
-			function(data) { // Call back function
-				var title = jQuery('h1 a', data.body).text();
+			{
+				type: "GET",
+				url: url, 
+				success: function(data) {
+					pblock.innerHTML = "Parsing results...";
 				
-				if (title) {
-					pblock.innerHTML = "<h1>Found something</h1>";
+					if (data) {
+						pblock.innerHTML = data;
+					}
+					else {
+						plock.innerHTML = "<h1>Fail!</h1>";
+					}
+					
+					
+										
+				},
+				error: function(request, errorMsg) {
+					pblock.innerHTML = "Failed to find " + searchText;
 				}
-				else {
-					plock.innerHTML = "<h1>Fail!</h1>";
-				}					
 			}
 		);
+	},
+	execute: function(args){
+		// Remove spaces
+		var re = new RegExp("\\s","g");
+		searchText = searchText.replace(re, "");
+		
+		var url = "http://epguides.com/" + searchText;
 	}
+	
 });	
