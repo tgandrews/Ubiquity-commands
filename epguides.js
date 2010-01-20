@@ -1,8 +1,9 @@
-const TEMPLATE = "<div style=\"clear: both;\">${title}</div><div style=\"float: left;\"><img style=\"height: 50px; width: 50px; float: left;\" src=\"${image}\"/><ul style=\"display: block; list-style-type: none; float: left;\"><li><p>Next Episode: ${next}</p></li><li><p>Last Episode: ${previous}</p></li> </ul></div>";
+const DISPLAY_TEMPLATE = "<div style=\"clear: both;\">${title}</div><div style=\"float: left;\"><img style=\"height: 50px; width: 50px; float: left;\" src=\"${image}\"/><ul style=\"display: block; list-style-type: none; float: left;\"><li><p>Next Episode: ${nextTitle} | ${nextDate}</p></li><li><p>Last Episode: ${lastTitle} | ${lastDate}</p></li> </ul></div>";
+const DATE_MATCHER = /([1-9]{1}|2[0-9]{1}|3[0-1]{1})\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s([0-9]{2})/;
+const TITLE_MATCHER = /<a target="_blank" href="http:\/\/www.tv.com\/[\w-\/%\d]+summary.html">[\w\s',!]*<\/a>/;
+const NUMBER_MATCHER = /\d{1}-(\s\d|\d{1,2})/;
 
 var log = CmdUtils.log;
-// Object cache!
-var cache = Application.storage;
 
 CmdUtils.CreateCommand({
 	names: ["epguides"],
@@ -36,20 +37,79 @@ CmdUtils.CreateCommand({
 		CmdUtils.previewAjax(
 			pblock, 
 			{
-				type: "GET",
-				url: url, 
+				url: url,
 				success: function(data) {
 					pblock.innerHTML = "Parsing results...";
-				
-					if (data) {
-						pblock.innerHTML = data;
-					}
-					else {
-						plock.innerHTML = "<h1>Fail!</h1>";
+					
+					// Won't take multiple e.g. 'div pre'
+					var eplist = jQuery(data).find('pre').html();
+					
+					var episodes = eplist.split("</a>");
+					
+					var nextEpisode;
+					var lastEpisode;
+					var now = Date.today();
+					
+					var last = episodes.length - 1;
+		
+					for (var i = last; i >= 0; --i) {
+						try {
+							// Readd the </a> removed from split
+							var temp = episodes[i] + "</a>";
+							var dates = DATE_MATCHER.exec(temp);
+							if (!dates) {
+								continue;
+							}
+							// Cannot be used as it has no date
+							if (dates[0].length <= 6) {
+								continue;
+							}
+							var date = Date.parse(dates[0]);
+							
+							var titles = TITLE_MATCHER.exec(temp);
+							if (!titles){
+								continue;
+							}
+							var title = titles[0];
+							
+							var before = date.isBefore(now);
+							
+							var object = {
+								date: date,
+								title: title
+							};
+							
+							if (date.isAfter(now)){
+								nextEpisode = object;
+							}
+							else {
+								lastEpisode = object;
+								break;
+							}
+						}
+						catch (e){
+							pblock.innerHTML += e;
+						}
 					}
 					
+					//pblock.innerHTML =	"Next: " + nextEpisode.date + " | " + nextEpisode.title;
 					
-										
+					if (!nextEpisode){
+						nextEpisode = {date: "Unknown", title: "Unknown"};
+					}
+					if (!lastEpisode){
+						lastEpisode = {date: "Unknown", title: "Unknown"};
+					}
+					
+					var params = {
+						title: "Test",
+						image: "Image",
+						lastTitle: lastEpisode.title,
+						lastDate: lastEpisode.date,
+						nextTitle: nextEpisode.title,
+						nextDate: nextEpisode.date
+					};
+					pblock.innerHTML = CmdUtils.renderTemplate(DISPLAY_TEMPLATE, params);
 				},
 				error: function(request, errorMsg) {
 					pblock.innerHTML = "Failed to find " + searchText;
