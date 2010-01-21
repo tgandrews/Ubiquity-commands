@@ -24,7 +24,7 @@ CmdUtils.CreateCommand({
 		}
 		
 		// Preview template
-		var template = "Searching epguides.com for <b>${query}</b>...";
+		var template = "<center><p>Searching epguides.com for <b>${query}</b> please wait...</p><img src=\"loading.gif\"/></center>";
 		var params = {query: searchText};
 		pblock.innerHTML = CmdUtils.renderTemplate(template, params);
 		
@@ -121,6 +121,7 @@ CmdUtils.CreateCommand({
 					var title = jQ.find("h1").html();
 					
 					var description = jQ.find("li.lihd").text();
+					var description = description.replace(/regulars:/, "");
 					
 					// Possible to not find either episode if dates not used!
 					var blank = {date: "Unknown", title: "Unknown", season: "00", episode: "00"};
