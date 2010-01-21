@@ -1,7 +1,7 @@
-const DISPLAY_TEMPLATE = "<div style=\"clear: both;\">${title}</div><div style=\"float: left;\"><img style=\"height: 50px; width: 50px; float: left;\" src=\"${image}\"/><ul style=\"display: block; list-style-type: none; float: left;\"><li><p>Next Episode: ${nextTitle} | ${nextDate}</p></li><li><p>Last Episode: ${lastTitle} | ${lastDate}</p></li> </ul></div>";
+const DISPLAY_TEMPLATE = "<div style=\"clear: both; margin-bottom:10px;\"><center>${title}</center></div><div style=\"float: left;\"><img style=\"height: 200px; width: auto; float: left;\" src=\"${image}\"/><div style=\"float:left;\">${description}</div></div><ul style=\"display:inline; list-style-type: none; float:right; width:100%;\"><li><p>Last Episode: S${lastSeason}E${lastEpisode} ${lastTitle} | ${lastDate}</p></li><li><p>Next Episode: S${nextSeason}E${nextEpisode} ${nextTitle} | ${nextDate}</p></li></ul>";
 const DATE_MATCHER = /([1-9]{1}|2[0-9]{1}|3[0-1]{1})\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s([0-9]{2})/;
 const TITLE_MATCHER = /<a target="_blank" href="http:\/\/www.tv.com\/[\w-\/%\d]+summary.html">[\w\s',!]*<\/a>/;
-const NUMBER_MATCHER = /\d{1}-(\s\d|\d{1,2})/;
+const NUMBER_MATCHER = /(\d{1})-(\s\d|\d{1,2})/;
 
 var log = CmdUtils.log;
 
@@ -13,7 +13,7 @@ CmdUtils.CreateCommand({
 	license: "GPL",
 	description: "Allows you to search epguides.com for playing info for the latest TV shows.",
 	help: "Enter the name of the TV show to search for.",
-	arguments: [{role: "object", nountype: noun_arb_text, label: "torrent to search for"}],
+	arguments: [{role: "object", nountype: noun_arb_text, label: "TV show to search for"}],
 	
 	preview: function(pblock, args) {
 		var searchText = jQuery.trim(args.object.text);
@@ -34,6 +34,7 @@ CmdUtils.CreateCommand({
 		
 		var url = "http://epguides.com/" + searchText;
 		
+		// Go get the page
 		CmdUtils.previewAjax(
 			pblock, 
 			{
@@ -42,7 +43,8 @@ CmdUtils.CreateCommand({
 					pblock.innerHTML = "Parsing results...";
 					
 					// Won't take multiple e.g. 'div pre'
-					var eplist = jQuery(data).find('pre').html();
+					var jQ = jQuery(data);
+					var eplist = jQ.find('pre').html();
 					
 					var episodes = eplist.split("</a>");
 					
@@ -72,11 +74,31 @@ CmdUtils.CreateCommand({
 							}
 							var title = titles[0];
 							
-							var before = date.isBefore(now);
+							var seasonEpisode = NUMBER_MATCHER.exec(temp);
+							
+							var seasonSimple = seasonEpisode[1];
+							var season = "";
+							if (seasonSimple < 10){
+								season = "0" + seasonSimple;
+							}
+							else {
+								season = seasonSimple;
+							}
+							
+							var episodeSimple = seasonEpisode[2];
+							var episode = seasonEpisode[2];
+							if (episodeSimple < 10){
+								episode = "0" + episodeSimple;
+							}
+							else {
+								episode = episodeSimple;
+							}
 							
 							var object = {
 								date: date,
-								title: title
+								title: title,
+								season: season,
+								episode: episode
 							};
 							
 							if (date.isAfter(now)){
@@ -92,22 +114,36 @@ CmdUtils.CreateCommand({
 						}
 					}
 					
-					//pblock.innerHTML =	"Next: " + nextEpisode.date + " | " + nextEpisode.title;
+					// Retrieve what is left
+					var imgSource = jQ.find("img.CasLogPic").attr("src");
+					var image = url + "/" + imgSource;
 					
+					var title = jQ.find("h1").html();
+					
+					var description = jQ.find("li.lihd").text();
+					
+					// Possible to not find either episode if dates not used!
+					var blank = {date: "Unknown", title: "Unknown", season: "00", episode: "00"};
 					if (!nextEpisode){
-						nextEpisode = {date: "Unknown", title: "Unknown"};
+						nextEpisode = blank;
 					}
 					if (!lastEpisode){
-						lastEpisode = {date: "Unknown", title: "Unknown"};
+						lastEpisode = blank;
 					}
 					
+					// Render the output! Yay!
 					var params = {
-						title: "Test",
-						image: "Image",
+						title: title,
+						image: image,
+						description: description,
 						lastTitle: lastEpisode.title,
-						lastDate: lastEpisode.date,
+						lastDate: lastEpisode.date.toString("dd MMM yy"),
+						lastEpisode: lastEpisode.episode,
+						lastSeason: lastEpisode.season,
 						nextTitle: nextEpisode.title,
-						nextDate: nextEpisode.date
+						nextDate: nextEpisode.date.toString("dd MMM yy"),
+						nextEpisode: nextEpisode.episode,
+						nextSeason: nextEpisode.season
 					};
 					pblock.innerHTML = CmdUtils.renderTemplate(DISPLAY_TEMPLATE, params);
 				},
@@ -124,5 +160,4 @@ CmdUtils.CreateCommand({
 		
 		var url = "http://epguides.com/" + searchText;
 	}
-	
-});	
+});
