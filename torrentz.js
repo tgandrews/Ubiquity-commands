@@ -1,3 +1,10 @@
+/*
+TODO:
+	1. Use jQuery rather than regex.
+	2. Add loading gif.
+	3. Replace hacked UI with template.
+*/
+
 CmdUtils.CreateCommand({
 	names: ["torrentz"],
 	icon: "http://torrentz.com/favicon.ico",
