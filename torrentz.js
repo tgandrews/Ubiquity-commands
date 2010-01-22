@@ -7,8 +7,8 @@ TODO:
 
 CmdUtils.CreateCommand({
 	names: ["torrentz"],
-	icon: "http://torrentz.com/favicon.ico",
-	homepage: "http://tomandrews.co.uk/",
+	icon: "http://www.torrentz.com/favicon.ico",
+	homepage: "http://www.tomandrews.co.uk/",
 	author: {name: "Tom Andrews", email: "me@tomandrews.co.uk"},
 	license: "GPL",
 	description: "Allows you to search for active torrents via the meta search engine Torrentz.com",
@@ -31,7 +31,7 @@ CmdUtils.CreateCommand({
 		var re = new RegExp("\\s","g");
 		searchText = searchText.replace(re, "+");
     
-		var url = "http://torrentz.com/search?q=" + searchText;
+		var url = "http://www.torrentz.com/search?q=" + searchText;
             
 		CmdUtils.previewAjax(pblock, {
 			type: "GET",
@@ -86,7 +86,7 @@ CmdUtils.CreateCommand({
 					temp = temp.replace("</span>","<br />");
 					
 					// Fix the URL
-					temp = temp.replace("href=\"/", "href=\"http://torrentz.com/");
+					temp = temp.replace("href=\"/", "href=\"http://www.torrentz.com/");
 					output += temp;
 				} // For
 			
