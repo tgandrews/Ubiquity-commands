@@ -24,7 +24,7 @@ CmdUtils.CreateCommand({
 		}
 		
 		// Preview template
-		var template = "<center><p>Searching epguides.com for <b>${query}</b> please wait...</p><img src=\"loading.gif\"/></center>";
+		var template = "<center><p>Searching epguides.com for <b>${query}</b> please wait...</p></center>";
 		var params = {query: searchText};
 		pblock.innerHTML = CmdUtils.renderTemplate(template, params);
 		
