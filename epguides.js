@@ -63,7 +63,6 @@ CmdUtils.CreateCommand({
 							
 							// Readd the </a> removed from split
 							var temp = episodes[i] + "</a>";
-							log(temp);
 							
 							var dates = DATE_MATCHER.exec(temp);
 							var foundDate = false;
