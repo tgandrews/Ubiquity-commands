@@ -96,4 +96,4 @@ CmdUtils.CreateCommand({
 		output = output.replace(re, "+");
 		Utils.openUrlInBrowser("http://torrentz.com/search?q=" + output);
 	} // Execxute
-}); // Command finished
+});
