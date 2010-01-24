@@ -1,7 +1,10 @@
 const DISPLAY_TEMPLATE = "<div style=\"clear: both; margin-bottom:10px;\"><center>${title}</center></div><div style=\"float: left;\"><img style=\"height: 200px; width: auto; float: left;\" src=\"${image}\"/><div style=\"float:left;\">${description}</div></div><ul style=\"display:inline; list-style-type: none; float:right; width:100%;\"><li><p>Last Episode: S${lastSeason}E${lastEpisode} ${lastTitle} | ${lastDate}</p></li><li><p>Next Episode: S${nextSeason}E${nextEpisode} ${nextTitle} | ${nextDate}</p></li></ul>";
-const DATE_MATCHER = /([1-9]{1}|2[0-9]{1}|3[0-1]{1})\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s([0-9]{2})/;
-const TITLE_MATCHER = /<a target="_blank" href="http:\/\/www.tv.com\/[\w-\/%\d]+summary.html">[\w\s',!]*<\/a>/;
-const NUMBER_MATCHER = /(\d{1})-(\s\d|\d{1,2})/;
+const DISPLAY_NONEXT_TEMPLATE = "<div style=\"clear: both; margin-bottom:10px;\"><center>${title}</center></div><div style=\"float: left;\"><img style=\"height: 200px; width: auto; float: left;\" src=\"${image}\"/><div style=\"float:left;\">${description}</div></div><ul style=\"display:inline; list-style-type: none; float:right; width:100%;\"><li><p>Last Episode: S${lastSeason}E${lastEpisode} ${lastTitle} | ${lastDate}</p></li><li><p>Next Episode: Unknown</p></li></ul>";
+const DISPLAY_NOLAST_TEMPLATE = "<div style=\"clear: both; margin-bottom:10px;\"><center>${title}</center></div><div style=\"float: left;\"><img style=\"height: 200px; width: auto; float: left;\" src=\"${image}\"/><div style=\"float:left;\">${description}</div></div><ul style=\"display:inline; list-style-type: none; float:right; width:100%;\"><li><p>Last Episode: Unknown</p></li><li><p>Next Episode: S${nextSeason}E${nextEpisode} ${nextTitle} | ${nextDate}</p></li></ul>";
+const DISPLAY_NONE_TEMPLATE = "<div style=\"clear: both; margin-bottom:10px;\"><center>${title}</center></div><div style=\"float: left;\"><img style=\"height: 200px; width: auto; float: left;\" src=\"${image}\"/><div style=\"float:left;\">${description}</div></div><ul style=\"display:inline; list-style-type: none; float:right; width:100%;\"><li><p>Last Episode: Unknown</p></li><li><p>Next Episode: Unkown</p></li></ul>";
+const DATE_MATCHER = /([1-9]{1}|1[0-9]{1}|2[0-9]{1}|3[0-1]{1})[\s\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\s\/]([0-9]{2})/;
+const TITLE_MATCHER = /<a [\w='\"\/\d\s?:.-]*>[\w\s,!']*<\/a>/;
+const NUMBER_MATCHER = /(\d{1,2})-(\s\d{1,2}|\d{1,2})/;
 
 var log = CmdUtils.log;
 
@@ -29,7 +32,7 @@ CmdUtils.CreateCommand({
 		pblock.innerHTML = CmdUtils.renderTemplate(template, params);
 		
 		// Remove spaces
-		var re = new RegExp("\\s","g");
+		var re = new RegExp("(\\s|the)","ig");
 		searchText = searchText.replace(re, "");
 		
 		var url = "http://epguides.com/" + searchText;
@@ -42,9 +45,7 @@ CmdUtils.CreateCommand({
 				success: function(data) {
 					pblock.innerHTML = "Parsing results...";
 					
-					// Won't take multiple e.g. 'div pre'
-					var jQ = jQuery(data);
-					var eplist = jQ.find('pre').html();
+					var eplist = data.split("<pre>")[1].split("</pre>")[0];
 					
 					var episodes = eplist.split("</a>");
 					
@@ -56,17 +57,21 @@ CmdUtils.CreateCommand({
 		
 					for (var i = last; i >= 0; --i) {
 						try {
+							if (episodes[i].trim().length < 1){
+								continue;
+							}
+							
 							// Readd the </a> removed from split
 							var temp = episodes[i] + "</a>";
+							log(temp);
+							
 							var dates = DATE_MATCHER.exec(temp);
-							if (!dates) {
-								continue;
+							var foundDate = false;
+							var date = "Unknown";
+							if (dates && dates[0].length > 6) {
+								date = Date.parse(dates[0]);
+								foundDate = true;
 							}
-							// Cannot be used as it has no date
-							if (dates[0].length <= 6) {
-								continue;
-							}
-							var date = Date.parse(dates[0]);
 							
 							var titles = TITLE_MATCHER.exec(temp);
 							if (!titles){
@@ -75,6 +80,9 @@ CmdUtils.CreateCommand({
 							var title = titles[0];
 							
 							var seasonEpisode = NUMBER_MATCHER.exec(temp);
+							if (!seasonEpisode){
+								continue;
+							}
 							
 							var seasonSimple = seasonEpisode[1];
 							var season = "";
@@ -101,64 +109,97 @@ CmdUtils.CreateCommand({
 								episode: episode
 							};
 							
-							if (date.isAfter(now)){
-								nextEpisode = object;
-							}
-							else {
+							// If we found a date and it's before now then it must be last.
+							if (foundDate && !date.isAfter(now)){
 								lastEpisode = object;
 								break;
+							}
+							// Other wise it is next
+							else {
+								nextEpisode = object;
 							}
 						}
 						catch (e){
 							pblock.innerHTML += e;
+							return;
 						}
 					}
-					
-					// Retrieve what is left
+
+					// Retrieve what is left - this returns nothing if HTML is b0rked
+					var jQ = jQuery(data);
 					var imgSource = jQ.find("img.CasLogPic").attr("src");
 					var image = url + "/" + imgSource;
 					
 					var title = jQ.find("h1").html();
 					
 					var description = jQ.find("li.lihd").text();
-					var description = description.replace(/regulars:/, "");
+					var description = description.replace(/(regulars:|recurring character:)/ig, "");
 					
-					// Possible to not find either episode if dates not used!
-					var blank = {date: "Unknown", title: "Unknown", season: "00", episode: "00"};
-					if (!nextEpisode){
-						nextEpisode = blank;
+					// OUTPUT
+					// No future episodes known about
+					if (lastEpisode && !nextEpisode){
+						var params = {
+							title: title,
+							image: image,
+							description: description,
+							lastTitle: lastEpisode.title,
+							lastDate: lastEpisode.date.toString("dd MMM yy"),
+							lastEpisode: lastEpisode.episode,
+							lastSeason: lastEpisode.season
+						}
+						pblock.innerHTML = CmdUtils.renderTemplate(DISPLAY_NONEXT_TEMPLATE, params);
 					}
-					if (!lastEpisode){
-						lastEpisode = blank;
+					// All episodes in the future
+					else if (nextEpisode && !lastEpisode){
+						var params = {
+							title: title,
+							image: image,
+							description: description,
+							nextTitle: nextEpisode.title,
+							nextDate: nextEpisode.date.toString("dd MMM yy"),
+							nextEpisode: nextEpisode.episode,
+							nextSeason: nextEpisode.season
+						};
+						pblock.innerHTML = CmdUtils.renderTemplate(DISPLAY_NOLAST_TEMPLATE, params);
 					}
-					
-					// Render the output! Yay!
-					var params = {
-						title: title,
-						image: image,
-						description: description,
-						lastTitle: lastEpisode.title,
-						lastDate: lastEpisode.date.toString("dd MMM yy"),
-						lastEpisode: lastEpisode.episode,
-						lastSeason: lastEpisode.season,
-						nextTitle: nextEpisode.title,
-						nextDate: nextEpisode.date.toString("dd MMM yy"),
-						nextEpisode: nextEpisode.episode,
-						nextSeason: nextEpisode.season
-					};
-					pblock.innerHTML = CmdUtils.renderTemplate(DISPLAY_TEMPLATE, params);
+					else if (!nextEpisode && !lastEpisode){
+						var params = {
+							title: title,
+							image: image,
+							description: description
+						};
+						pblock.innerHTML = CmdUtils.renderTemplate(DISPLAY_NONE_TEMPLATE, params);
+					}
+					// Render the default output. When last and next is known.
+					else {
+						var params = {
+							title: title,
+							image: image,
+							description: description,
+							lastTitle: lastEpisode.title,
+							lastDate: lastEpisode.date.toString("dd MMM yy"),
+							lastEpisode: lastEpisode.episode,
+							lastSeason: lastEpisode.season,
+							nextTitle: nextEpisode.title,
+							nextDate: nextEpisode.date.toString("dd MMM yy"),
+							nextEpisode: nextEpisode.episode,
+							nextSeason: nextEpisode.season
+						};
+						pblock.innerHTML = CmdUtils.renderTemplate(DISPLAY_TEMPLATE, params);
+					}
 				},
 				error: function(request, errorMsg) {
-					pblock.innerHTML = "Failed to find " + searchText;
+					pblock.innerHTML = "Failed to find " + args.object.text;
 				}
 			}
 		);
 	},
 	execute: function(args){
 		// Remove spaces
-		var re = new RegExp("\\s","g");
-		searchText = searchText.replace(re, "");
+		var re = new RegExp("(\\s|the)","ig");
+		searchText = args.object.text.replace(re, "");
 		
 		var url = "http://epguides.com/" + searchText;
+		Utils.openUrlInBrowser(url);
 	}
 });
