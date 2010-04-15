@@ -31,7 +31,7 @@ CmdUtils.CreateCommand({
 		var params = {query: searchText};
 		pblock.innerHTML = CmdUtils.renderTemplate(template, params);
 		
-		// Remove spaces
+		// Remove spaces and the - it is missed off the URL so The Cleveland Show becomes ClevelandShow
 		var re = new RegExp("(\\s|the)","ig");
 		searchText = searchText.replace(re, "");
 		
@@ -113,7 +113,7 @@ CmdUtils.CreateCommand({
 								lastEpisode = object;
 								break;
 							}
-							// Other wise it is next
+							// Otherwise it is next
 							else {
 								nextEpisode = object;
 							}
@@ -132,6 +132,8 @@ CmdUtils.CreateCommand({
 					var title = jQ.find("h1").html();
 					
 					var description = jQ.find("li.lihd").text();
+					
+					// TODO: Should this be recurring characters?
 					var description = description.replace(/(regulars:|recurring character:)/ig, "");
 					
 					// OUTPUT
